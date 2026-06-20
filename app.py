@@ -48,13 +48,43 @@ def get_embedding(text):  #function call
     )     #embedding is the feature under openAI, create is the request sent to openAi server, input=text is the actual data from the pdf sent to the oPENAI server
     return response.data[0].embedding   #the response is a structured object, usually the first one is extracted and sent because it contains the actual embedding
 
-#store chunks
-import faiss
 
-index = faiss.IndexFlatL2(1536)
-stored_chunks = []
+#store chunks
+import faiss  #meta library for fast search
+
+index = faiss.IndexFlatL2(1536)   #Index is the storage for embeddings
+stored_chunks = []  #for the original text list 
 
 for chunk in chunks:
-    emb = get_embedding(chunk)
-    index.add(np.array([emb]).astype("float32"))
-    stored_chunks.append(chunk)
+    emb = get_embedding(chunk)   #creates embedding of all text
+    index.add(np.array([emb]).astype("float32"))  #turns the embedding into np array then converts into faiss datatype ass index.add stores the embedding in faiss
+    stored_chunks.append(chunk)   #chunk are stored in stored chunks so both lines happen togehter so we can know the chunk has this embeddings
+
+
+def search(query):
+    q_emb = get_embedding(query)
+
+    D, I = index.search(np.array([q_emb]).astype("float32"), k=3)
+
+    return [stored_chunks[i] for i in I[0]]
+def ask_ai(query):
+    context = search(query)
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "Answer only using the given context."},
+            {"role": "user", "content": f"Context: {context}\n\nQuestion: {query}"}
+        ]
+    )
+
+    return response.choices[0].message.content
+
+
+
+
+question = st.text_input("Ask a question")
+
+if question:
+    answer = ask_ai(question)
+    st.write(answer)
