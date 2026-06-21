@@ -41,7 +41,10 @@ import numpy as np
 
 client = OpenAI(api_key="YOUR_API_KEY") #connects the program to openAI 
                                     #dont do this for real world life application as the key is getting exposed
+
+
 def get_embedding(text):  #function call
+
     response = client.embeddings.create(     
         model="text-embedding-3-small",
         input=text
@@ -60,17 +63,21 @@ for chunk in chunks:
     index.add(np.array([emb]).astype("float32"))  #turns the embedding into np array then converts into faiss datatype ass index.add stores the embedding in faiss
     stored_chunks.append(chunk)   #chunk are stored in stored chunks so both lines happen togehter so we can know the chunk has this embeddings
 
+#retrieves the relevant chunks 
 
 def search(query):
-    q_emb = get_embedding(query)
+    q_emb = get_embedding(query)  #converts the query into embeddings
 
-    D, I = index.search(np.array([q_emb]).astype("float32"), k=3)
+    D, I = index.search(np.array([q_emb]).astype("float32"), k=3)  #returns distance and indexes
 
-    return [stored_chunks[i] for i in I[0]]
-def ask_ai(query):
-    context = search(query)
+    return [stored_chunks[i] for i in I[0]]  #FAISS receives one 1536-number query embedding, compares it against all stored embeddings, finds 3 matching embeddings (each 1536 numbers long), and returns their indices rather than returning all those numbers. 
 
-    response = client.chat.completions.create(
+
+
+def ask_ai(query):  
+    context = search(query) #Converts question → embedding ,Searches FAISS ,Returns the most relevant chunks
+
+    response = client.chat.completions.create(  #use of chat model instead of embedding model
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": "Answer only using the given context."},
@@ -81,9 +88,7 @@ def ask_ai(query):
     return response.choices[0].message.content
 
 
-
-
-question = st.text_input("Ask a question")
+question = st.text_input("Ask a question") #creates a textbox
 
 if question:
     answer = ask_ai(question)
